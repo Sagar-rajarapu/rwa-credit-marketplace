@@ -2,9 +2,7 @@
 //! Lists tokenized RWA loan opportunities and matches investors with borrowers.
 
 #![no_std]
-use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, Address, Env, String, Symbol,
-};
+use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env, String, Symbol};
 
 #[contracttype]
 #[derive(Clone, PartialEq)]
@@ -69,10 +67,12 @@ impl MarketplaceContract {
         id
     }
 
-    /// Mark a listing as funded (called by loan_pool or admin).
-    pub fn mark_funded(env: Env, caller: Address, listing_id: u32) {
-        caller.require_auth();
-        let mut listing: Listing = env.storage().persistent().get(&(LISTING, listing_id)).unwrap();
+    /// Mark a listing as funded. Only the borrower who created it may call this.
+    pub fn mark_funded(env: Env, borrower: Address, listing_id: u32) {
+        borrower.require_auth();
+        let mut listing: Listing = env.storage().persistent()
+            .get(&(LISTING, listing_id)).expect("listing not found");
+        assert!(listing.borrower == borrower, "not borrower");
         assert!(listing.status == ListingStatus::Open, "not open");
         listing.status = ListingStatus::Funded;
         env.storage().persistent().set(&(LISTING, listing_id), &listing);
@@ -81,7 +81,8 @@ impl MarketplaceContract {
     /// Borrower cancels an open listing.
     pub fn cancel(env: Env, borrower: Address, listing_id: u32) {
         borrower.require_auth();
-        let mut listing: Listing = env.storage().persistent().get(&(LISTING, listing_id)).unwrap();
+        let mut listing: Listing = env.storage().persistent()
+            .get(&(LISTING, listing_id)).expect("listing not found");
         assert!(listing.borrower == borrower, "not borrower");
         assert!(listing.status == ListingStatus::Open, "not open");
         listing.status = ListingStatus::Cancelled;
@@ -89,7 +90,7 @@ impl MarketplaceContract {
     }
 
     pub fn get_listing(env: Env, listing_id: u32) -> Listing {
-        env.storage().persistent().get(&(LISTING, listing_id)).unwrap()
+        env.storage().persistent().get(&(LISTING, listing_id)).expect("listing not found")
     }
 
     pub fn listing_count(env: Env) -> u32 {

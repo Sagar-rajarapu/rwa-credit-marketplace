@@ -9,24 +9,27 @@ export default function ListingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { publicKey, connect } = useWallet();
   const [listing, setListing] = useState<any>(null);
+  const [fetchError, setFetchError] = useState(false);
   const [amount, setAmount] = useState('');
   const [status, setStatus] = useState('');
 
   useEffect(() => {
-    api.getListing(Number(id)).then(setListing).catch(() => setListing(null));
+    api.getListing(Number(id))
+      .then(setListing)
+      .catch(() => setFetchError(true));
   }, [id]);
 
   async function handleInvest() {
     if (!publicKey) { await connect(); return; }
-    if (!amount || isNaN(Number(amount))) return;
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) return;
     setStatus('Submitting…');
     try {
-      // In production: build & sign Soroban tx here, then record off-chain
+      // TODO: build & sign Soroban tx, then pass real tx_hash here
       await api.recordInvestment({
         listing_id: listing.listing_id,
         investor_address: publicKey,
         amount: Math.round(Number(amount) * 1e7),
-        tx_hash: 'pending',
+        tx_hash: 'pending', // replace with actual hash after on-chain tx
       });
       setStatus('Investment recorded! Complete the transaction in Freighter.');
     } catch (e: any) {
@@ -34,6 +37,7 @@ export default function ListingDetailPage() {
     }
   }
 
+  if (fetchError) return <><Navbar /><p style={{ padding: '2rem', color: '#ef4444' }}>Listing not found.</p></>;
   if (!listing) return <><Navbar /><p style={{ padding: '2rem' }}>Loading…</p></>;
 
   const apy = (listing.interest_bps / 100).toFixed(1);
@@ -51,6 +55,7 @@ export default function ListingDetailPage() {
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           <input
             type="number"
+            min="0"
             placeholder="Amount (XLM)"
             value={amount}
             onChange={e => setAmount(e.target.value)}
@@ -60,7 +65,7 @@ export default function ListingDetailPage() {
             onClick={handleInvest}
             style={{ padding: '0.5rem 1.25rem', borderRadius: 6, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer' }}
           >
-            Invest
+            {publicKey ? 'Invest' : 'Connect Wallet'}
           </button>
         </div>
         {status && <p style={{ marginTop: '1rem', color: '#475569' }}>{status}</p>}

@@ -12,6 +12,8 @@ app.use('/investments', require('./routes/investments'));
 
 app.get('/health', (_, res) => res.json({ ok: true }));
 
+// Must be 4-argument signature for Express to treat as error handler
+// eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
   console.error(err);
   res.status(500).json({ error: 'internal server error' });

@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS listings (
   target_amount BIGINT NOT NULL,
   interest_bps INTEGER NOT NULL,
   duration_days INTEGER NOT NULL,
-  status VARCHAR(16) DEFAULT 'open',
+  status VARCHAR(16) DEFAULT 'open' CHECK (status IN ('open', 'funded', 'cancelled')),
   loan_pool_contract VARCHAR(56),
   loan_id INTEGER,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -29,6 +29,6 @@ CREATE TABLE IF NOT EXISTS investments (
   listing_id INTEGER REFERENCES listings(listing_id),
   investor_address VARCHAR(56) NOT NULL,
   amount BIGINT NOT NULL,
-  tx_hash VARCHAR(64),
+  tx_hash CHAR(64) UNIQUE NOT NULL,  -- Stellar tx hash: exactly 64 hex chars, must be unique
   created_at TIMESTAMPTZ DEFAULT NOW()
 );

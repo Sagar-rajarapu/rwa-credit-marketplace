@@ -3,9 +3,7 @@
 //! Each token corresponds to a share of a physical asset (machinery, fleet, hardware).
 
 #![no_std]
-use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, Address, Env, String, Symbol,
-};
+use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env, String, Symbol};
 
 #[contracttype]
 #[derive(Clone)]
@@ -18,11 +16,6 @@ pub struct AssetMetadata {
 }
 
 const METADATA: Symbol = symbol_short!("METADATA");
-const BALANCE: Symbol = symbol_short!("BALANCE");
-
-fn balance_key(env: &Env, addr: &Address) -> soroban_sdk::Val {
-    (BALANCE, addr.clone()).into_val(env)
-}
 
 #[contract]
 pub struct AssetTokenContract;
@@ -44,26 +37,28 @@ impl AssetTokenContract {
 
         let meta = AssetMetadata { name, asset_type, valuation, total_shares, admin: admin.clone() };
         env.storage().instance().set(&METADATA, &meta);
-        env.storage().persistent().set(&(BALANCE, admin), &total_shares);
+        env.storage().persistent().set(&(symbol_short!("BAL"), admin), &total_shares);
     }
 
     pub fn metadata(env: Env) -> AssetMetadata {
-        env.storage().instance().get(&METADATA).unwrap()
+        env.storage().instance().get(&METADATA).expect("not initialized")
     }
 
     pub fn balance(env: Env, addr: Address) -> i128 {
-        env.storage().persistent().get(&(BALANCE, addr)).unwrap_or(0)
+        env.storage().persistent().get(&(symbol_short!("BAL"), addr)).unwrap_or(0)
     }
 
     /// Transfer shares between accounts.
     pub fn transfer(env: Env, from: Address, to: Address, amount: i128) {
         from.require_auth();
         assert!(amount > 0, "amount must be positive");
-        let from_bal: i128 = env.storage().persistent().get(&(BALANCE, from.clone())).unwrap_or(0);
+        let from_bal: i128 = env.storage().persistent()
+            .get(&(symbol_short!("BAL"), from.clone())).unwrap_or(0);
         assert!(from_bal >= amount, "insufficient balance");
-        env.storage().persistent().set(&(BALANCE, from), &(from_bal - amount));
-        let to_bal: i128 = env.storage().persistent().get(&(BALANCE, to.clone())).unwrap_or(0);
-        env.storage().persistent().set(&(BALANCE, to), &(to_bal + amount));
+        env.storage().persistent().set(&(symbol_short!("BAL"), from), &(from_bal - amount));
+        let to_bal: i128 = env.storage().persistent()
+            .get(&(symbol_short!("BAL"), to.clone())).unwrap_or(0);
+        env.storage().persistent().set(&(symbol_short!("BAL"), to), &(to_bal + amount));
     }
 }
 
@@ -87,7 +82,7 @@ mod test {
             &admin,
             &String::from_str(&env, "Excavator Fleet A"),
             &String::from_str(&env, "fleet"),
-            &1_000_000_00,
+            &100_000_000,
             &1000,
         );
 
