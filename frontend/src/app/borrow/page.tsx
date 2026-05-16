@@ -1,0 +1,77 @@
+'use client';
+import { useState } from 'react';
+import Navbar from '@/components/Navbar';
+import { api } from '@/lib/api';
+import { useWallet } from '@/hooks/useWallet';
+
+export default function BorrowPage() {
+  const { publicKey, connect } = useWallet();
+  const [form, setForm] = useState({ title: '', description: '', asset_type: 'machinery', target_amount: '', interest_bps: '', duration_days: '' });
+  const [status, setStatus] = useState('');
+
+  function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })); }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!publicKey) { await connect(); return; }
+    setStatus('Submitting…');
+    try {
+      // In production: deploy asset_token + create_loan on-chain first, then list
+      await api.createListing({
+        listing_id: Date.now(), // placeholder; replace with on-chain id
+        borrower_address: publicKey,
+        title: form.title,
+        description: form.description,
+        asset_type: form.asset_type,
+        target_amount: Math.round(Number(form.target_amount) * 1e7),
+        interest_bps: Number(form.interest_bps),
+        duration_days: Number(form.duration_days),
+      });
+      setStatus('Listing created!');
+    } catch (e: any) {
+      setStatus(`Error: ${e.message}`);
+    }
+  }
+
+  const field = (label: string, key: string, type = 'text', extra?: object) => (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14 }}>
+      {label}
+      <input
+        type={type}
+        value={(form as any)[key]}
+        onChange={e => set(key, e.target.value)}
+        style={{ padding: '0.5rem 0.75rem', borderRadius: 6, border: '1px solid #cbd5e1' }}
+        {...extra}
+      />
+    </label>
+  );
+
+  return (
+    <>
+      <Navbar />
+      <main style={{ maxWidth: 520, margin: '3rem auto', padding: '0 1.5rem' }}>
+        <h2 style={{ fontWeight: 700, fontSize: '1.5rem', marginBottom: '1.5rem' }}>List an Asset</h2>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {field('Title', 'title')}
+          {field('Description', 'description')}
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14 }}>
+            Asset Type
+            <select value={form.asset_type} onChange={e => set('asset_type', e.target.value)}
+              style={{ padding: '0.5rem 0.75rem', borderRadius: 6, border: '1px solid #cbd5e1' }}>
+              <option value="machinery">Machinery</option>
+              <option value="fleet">Fleet</option>
+              <option value="hardware">Hardware</option>
+            </select>
+          </label>
+          {field('Target Amount (XLM)', 'target_amount', 'number')}
+          {field('Interest (basis points, e.g. 800 = 8%)', 'interest_bps', 'number')}
+          {field('Duration (days)', 'duration_days', 'number')}
+          <button type="submit" style={{ padding: '0.65rem', borderRadius: 6, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+            {publicKey ? 'Create Listing' : 'Connect Wallet'}
+          </button>
+          {status && <p style={{ color: '#475569' }}>{status}</p>}
+        </form>
+      </main>
+    </>
+  );
+}
